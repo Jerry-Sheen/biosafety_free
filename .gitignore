@@ -1,0 +1,91 @@
+# Security & Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+secrets/
+id_rsa
+id_rsa.pub
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environments
+venv/
+.venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Vector DB & Storage Data (data/chroma_db and reference datasets are tracked for deployment)
+data/uploads/*
+!data/uploads/*.json
+!data/reference/
+!data/reference/**
+/chroma_db/
+/uploads/
+*.db
+*.sqlite3
+!data/chroma_db/
+!data/chroma_db/**
+!data/chroma_db/*.sqlite3
+
+
+
+# Chat sessions & Local history
+data/chat_sessions/
+chat_history.json*
+
+# Temporary pipeline output & scratch data
+data/extracted/
+data/failed/
+scratch/
+test_query_local.py
+test_vector_store.py
+tmp_inspect_vector_store.py
+inspect_vector_sources.py
+scratch_reindex_json.py
+
+
+# Testing & Linting
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# IDE & OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/

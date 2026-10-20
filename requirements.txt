@@ -1,0 +1,56 @@
+# ==============================================================================
+# Biosafety Free RAG Pipeline Requirements
+# ==============================================================================
+
+# Core Web App & UI
+streamlit>=1.35.0
+
+# Backend API & Server (FastAPI Core)
+fastapi>=0.110.0
+uvicorn>=0.30.0
+httpx>=0.27.0
+sse-starlette>=2.0.0
+
+# LLM & Embedding (Local Open-Source & Commercial Cloud APIs)
+sentence-transformers>=3.0.0
+transformers>=4.40.0
+torch>=2.2.0
+accelerate>=0.30.0
+google-genai>=2.0.0
+openai>=1.0.0
+
+# Vector Database (Persistent Local Storage - Stable 0.6.3 without RustBindingsAPI bug)
+chromadb==0.6.3
+
+# PDF & Document Parsing
+pymupdf>=1.24.0
+pypdf>=4.2.0
+pdf2image>=1.17.0
+pillow>=10.3.0
+docling>=2.0.0
+openpyxl>=3.1.2
+python-docx>=1.1.0
+pandas>=2.2.0
+olefile>=0.47
+tabulate>=0.9.0
+
+# OCR Engines (RapidOCR with ONNX Runtime & Tesseract)
+rapidocr>=3.9.0
+onnxruntime>=1.18.0
+pytesseract>=0.3.10
+
+# Text Processing & Chunking
+langchain-text-splitters>=0.2.0
+langchain-core>=0.2.0
+
+# Pipeline Reliability, Resiliency & Logging
+tenacity>=8.3.0
+tqdm>=4.66.0
+python-dotenv>=1.0.1
+pydantic>=2.7.0
+truststore>=0.9.0
+
+# Testing & Quality
+pytest>=8.2.0
+pytest-asyncio>=0.23.0
+ruff>=0.4.0

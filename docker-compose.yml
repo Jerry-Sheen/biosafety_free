@@ -1,0 +1,82 @@
+services:
+  # 🧠 1. 백엔드 코어 서비스 (FastAPI: 로컬 오픈소스 LLM CPU 추론 & ChromaDB 검색)
+  backend-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: biosafety-free-backend
+    entrypoint: []
+    command: ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8600"]
+    restart: unless-stopped
+    ports:
+      - "8600:8600"
+    env_file:
+      - .env
+    environment:
+      - APP_ENV=production
+      - BACKEND_PORT=8600
+      - ANONYMIZED_TELEMETRY=False
+      - CHROMA_PERSIST_DIRECTORY=data/chroma_db
+      - UPLOAD_DIRECTORY=data/uploads
+    volumes:
+      - ./data/chroma_db:/app/data/chroma_db
+      - ./data/uploads:/app/data/uploads
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
+  # 🛠️ 2. 관리자 포털 서비스 (admin.py: 문서 업로드, Docling/OCR, 청킹, 임베딩, DB 관리)
+  admin-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: biosafety-free-admin
+    entrypoint: []
+    command: ["streamlit", "run", "admin.py", "--server.port=8601", "--server.address=0.0.0.0"]
+    restart: unless-stopped
+    ports:
+      - "8601:8601"
+    env_file:
+      - .env
+    environment:
+      - APP_ENV=production
+      - ADMIN_PORT=8601
+      - ANONYMIZED_TELEMETRY=False
+      - CHROMA_PERSIST_DIRECTORY=data/chroma_db
+      - UPLOAD_DIRECTORY=data/uploads
+    volumes:
+      - ./data/chroma_db:/app/data/chroma_db
+      - ./data/uploads:/app/data/uploads
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+
+  # 💬 3. 사용자 포털 서비스 (user.py: 무료/유료 듀얼 모드 RAG, 실시간 스트리밍 대화형 포털)
+  user-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: biosafety-free-user
+    entrypoint: []
+    command: ["streamlit", "run", "user.py", "--server.port=8602", "--server.address=0.0.0.0"]
+    restart: unless-stopped
+    ports:
+      - "8602:8602"
+    env_file:
+      - .env
+    environment:
+      - APP_ENV=production
+      - USER_PORT=8602
+      - ANONYMIZED_TELEMETRY=False
+      - BACKEND_URL=http://backend-service:8600
+      - CHROMA_PERSIST_DIRECTORY=data/chroma_db
+    volumes:
+      - ./data/chroma_db:/app/data/chroma_db
+    depends_on:
+      - backend-service
+    deploy:
+      resources:
+        limits:
+          memory: 2G
