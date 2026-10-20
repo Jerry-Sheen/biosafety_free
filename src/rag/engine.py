@@ -897,13 +897,41 @@ class ConversationalRAGEngine:
                     "message": f"로컬 오픈소스 AI 모델({self.local_llm_model}) 준비 및 로딩 중... (최초 1회 자동 다운로드)"
                 }
 
-            messages = [{"role": "system", "content": selected_system_prompt}]
-            for m in chat_history[-3:]:
+            # High-efficiency prompt tailoring for Local CPU inference
+            if has_step1:
+                local_system_prompt = (
+                    "당신은 대한민국 생물안전 및 법률 규제 전문가입니다. "
+                    "1단계 규제 현황(생물체위험군 및 적용 법령)은 이미 확인되어 화면에 표시되었으므로, "
+                    "2단계로서 해당 법률에 따른 실무 신고 절차(소관 부처, 신청 포털, 단계별 절차, 구비서류, 핵심 주의사항)를 "
+                    "가독성 높은 마크다운 목록 형식으로 상세하고 명확하게 작성해주세요."
+                )
+                concise_primary = "\n---\n".join([c.get("text", "") for c in retrieved_chunks[:2]])
+                concise_law = law_context_str[:1200] if law_context_str else ""
+                local_user_content = (
+                    f"[질문 대상 병원체/독소]\n{query}\n\n"
+                    f"[1단계 확정 적용 법률]\n{app_laws_str}\n\n"
+                    f"[관련 규제 지침 발췌]\n{concise_primary}\n\n"
+                    f"[핵심 법조문 요약]\n{concise_law}\n\n"
+                    f"[지침]\n위 적용 법률에 대한 2단계 실무 가이드 절차(신고 기관 및 포털, 단계별 실무 절차, 구비서류, 연구자 핵심 주의사항)를 작성하세요."
+                )
+            else:
+                local_system_prompt = "당신은 대한민국 생물안전 전문 법률 자문가입니다. 질문에 대해 관련 법령에 기반하여 명확하고 신뢰성 있는 법률 자문을 제공하세요."
+                concise_primary = "\n---\n".join([c.get("text", "") for c in retrieved_chunks[:2]])
+                concise_law = law_context_str[:1500] if law_context_str else ""
+                local_user_content = (
+                    f"[사용자 질의]\n{query}\n\n"
+                    f"[관련 규제 데이터]\n{concise_primary}\n\n"
+                    f"[관련 법조문 발췌]\n{concise_law}\n\n"
+                    f"[지침]\n위 데이터를 근거로 질문에 대해 상세히 답변하세요."
+                )
+
+            messages = [{"role": "system", "content": local_system_prompt}]
+            for m in chat_history[-2:]:
                 messages.append({"role": m["role"], "content": m["content"]})
-            messages.append({"role": "user", "content": user_prompt_with_context})
+            messages.append({"role": "user", "content": local_user_content})
 
             try:
-                raw_stream = local_provider.stream_generate(messages=messages, max_new_tokens=1024)
+                raw_stream = local_provider.stream_generate(messages=messages, max_new_tokens=600)
                 first_token = True
                 stream_msg = "2단계 실시간 법령 및 실무 절차 스트리밍 중 (로컬 무료 AI)..." if has_step1 else "법률전문가·교수·변호사 관점의 심층 법률 자문 스트리밍 중 (로컬 무료 AI)..."
                 for chunk_text in sanitize_llm_stream(raw_stream, has_step1_direct=has_step1):
