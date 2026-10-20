@@ -890,6 +890,13 @@ class ConversationalRAGEngine:
             from src.rag.local_llm import get_local_llm_provider
             local_provider = get_local_llm_provider()
 
+            if not local_provider.is_ready:
+                yield {
+                    "type": "status",
+                    "stage": "loading_model",
+                    "message": f"로컬 오픈소스 AI 모델({self.local_llm_model}) 준비 및 로딩 중... (최초 1회 자동 다운로드)"
+                }
+
             messages = [{"role": "system", "content": selected_system_prompt}]
             for m in chat_history[-3:]:
                 messages.append({"role": m["role"], "content": m["content"]})

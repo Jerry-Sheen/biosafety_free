@@ -1059,23 +1059,25 @@ def run_streamlit_app():
     # Chat input box
     if prompt := st.chat_input("병원균, 위험균, 생물작용제 및 독소에 대한 질문을 입력하세요..."):
         # Check API key configuration before running RAG search
-        current_api_key = rag_engine.gemini_api_key if rag_engine.llm_provider == "gemini" else rag_engine.openai_api_key
-        if not current_api_key or not current_api_key.strip():
-            st.session_state.user_messages.append({"role": "user", "content": prompt})
-            provider_label = "Google Gemini" if rag_engine.llm_provider == "gemini" else "OpenAI"
-            key_url = "https://aistudio.google.com/app/apikey" if rag_engine.llm_provider == "gemini" else "https://platform.openai.com/api-keys"
-            st.session_state.user_messages.append({
-                "role": "assistant",
-                "content": (
-                    f"⚠️ **{provider_label} API 키가 설정되지 않았습니다.**\n\n"
-                    f"답변을 생성하기 위해서는 사용자의 API 키가 필요합니다.\n\n"
-                    f"1. 좌측 사이드바의 **'🔑 {provider_label} API 키 입력'** 란에 본인의 API 키를 입력해 주세요.\n"
-                    f"2. 아직 키가 없으시다면 [👉 {provider_label} API 키 발급받기]({key_url})에서 무료로 발급받으실 수 있습니다.\n\n"
-                    f"*(※ 입력하신 API 키는 브라우저 세션 중에만 임시 사용되며, 서버에 일절 저장되지 않습니다.)*"
-                )
-            })
-            _save_session(st.session_state.current_session_id, st.session_state.user_messages)
-            st.rerun()
+        # Check API key configuration only when paid cloud provider is selected
+        if rag_engine.llm_provider in ("gemini", "openai"):
+            current_api_key = rag_engine.gemini_api_key if rag_engine.llm_provider == "gemini" else rag_engine.openai_api_key
+            if not current_api_key or not current_api_key.strip():
+                st.session_state.user_messages.append({"role": "user", "content": prompt})
+                provider_label = "Google Gemini" if rag_engine.llm_provider == "gemini" else "OpenAI"
+                key_url = "https://aistudio.google.com/app/apikey" if rag_engine.llm_provider == "gemini" else "https://platform.openai.com/api-keys"
+                st.session_state.user_messages.append({
+                    "role": "assistant",
+                    "content": (
+                        f"⚠️ **{provider_label} API 키가 설정되지 않았습니다.**\n\n"
+                        f"답변을 생성하기 위해서는 사용자의 API 키가 필요합니다.\n\n"
+                        f"1. 좌측 사이드바의 **'🔑 {provider_label} API 키 입력'** 란에 본인의 API 키를 입력해 주세요.\n"
+                        f"2. 아직 키가 없으시다면 [👉 {provider_label} API 키 발급받기]({key_url})에서 무료로 발급받으실 수 있습니다.\n\n"
+                        f"*(※ 입력하신 API 키는 브라우저 세션 중에만 임시 사용되며, 서버에 일절 저장되지 않습니다.)*"
+                    )
+                })
+                _save_session(st.session_state.current_session_id, st.session_state.user_messages)
+                st.rerun()
 
         st.session_state.user_messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
