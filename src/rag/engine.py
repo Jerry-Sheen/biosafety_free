@@ -38,8 +38,7 @@ PATHOGEN_SYSTEM_PROMPT = """당신은 법령 검색 및 규제 안내 전문가�
   1. 8대 필수 항목별 규제 요건
      (1. 분리신고 ~ 8. 인도신고를 하나도 빠짐없이 순서대로 설명. 해당 법률에서 특정 항목 규정이 없는 경우 반드시 '해당없음'과 이유 명시)
   2. 실무 가이드 절차
-     (★ 중요 안내사항 필수 표기: [2단계: ...] 전체 대제목 바로 아래에는 안내사항을 절대 쓰지 마십시오. 오직 각 적용 법률 하위의 '2. 실무 가이드 절차' 소제목 바로 아래에만 한 칸 띄운 후 다음 줄에 아래의 안내사항을 그대로 표기할 것:
-     - **안내사항 : 아래 실무 가이드 절차는 참고만 하시기 바라며, 실무 절차 관련 문의는 정책지원실 담당자(김성혜)에게 연락해 주시기 바랍니다.**)
+     (★ 안내사항 자동 삽입 규칙: [2단계: ...] 전체 대제목 아래나 '2. 실무 가이드 절차' 아래 등 본문 어디에도 '안내사항 : 아래 실무 가이드 절차는 참고만...' 문구를 모델이 직접 작성하지 마십시오! 시스템이 자동으로 표준 규격 안내사항 1개를 정확한 위치에 삽입하므로 중복 출력을 엄격히 금지합니다.)
      (소관 부처, 신청/신고 시스템 포털명 및 URL, 단계별 절차 Step 1~3, 구비서류 등)
   3. 주의사항
      (형사처벌, 양벌 규정 등 벌칙과 행정처분 내용, 보관 및 운송 규정, 위험물질 취급 제한 등 연구자가 반드시 숙지해야 할 주의사항을 작성하여 항상 포함할 것. 해당사항이 없을 경우 반드시 '해당사항 없음'이라고 명시)
@@ -314,41 +313,63 @@ def sanitize_llm_stream(chunk_iterable, has_step1_direct: bool):
 PRACTICAL_GUIDE_NOTICE = "- **안내사항 : 아래 실무 가이드 절차는 참고만 하시기 바라며, 실무 절차 관련 문의는 정책지원실 담당자(김성혜)에게 연락해 주시기 바랍니다.**"
 
 
-def inject_practical_guide_notice(text: str) -> str:
+def strip_all_practical_guide_notices(text: str) -> str:
     """
-    답변 중 '2. 실무 가이드 절차' 소제목 바로 아래에 단 1개의 안내사항만
-    볼드체로 남기고, 연달아 나타나거나 중복된 모든 안내문구는 깔끔하게 삭제합니다.
+    텍스트 내에 존재하는 모든 형태(단일행, 다중행 줄바꿈, 볼드, 인용부호 등)의
+    정책지원실(김성혜) 안내사항 문구를 완전히 제거합니다.
     """
     if not text:
         return text
+    lines = text.split("\n")
+    cleaned_lines = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+        is_notice_start = any(k in stripped for k in ["안내사항", "아래 실무 가이드 절차는 참고만"]) and not any(k in stripped for k in ["2단계", "단계:", "8대 항목", "규칙", "작성", "소제목", "대제목"])
+        if "김성혜" in stripped or "정책지원실" in stripped:
+            i += 1
+            while i < len(lines) and any(k in lines[i] for k in ["바랍니다", "연락해 주시기", "문의해 주시기"]) and not any(lines[i].strip().startswith(prefix) for prefix in ["#", "1.", "2.", "3.", "-", "*"]):
+                i += 1
+            continue
+        if is_notice_start:
+            lookahead = "\n".join(lines[i:min(i+5, len(lines))])
+            if "김성혜" in lookahead or "정책지원실" in lookahead:
+                while i < len(lines):
+                    cur = lines[i]
+                    i += 1
+                    if any(k in cur for k in ["바랍니다", "문의하세요"]) or cur.strip() == "":
+                        break
+                continue
+        cleaned_lines.append(line)
+        i += 1
+    return "\n".join(cleaned_lines)
 
-    # 김성혜 안내사항 패턴 (볼드체, 하이픈, 띄어쓰기 등 모든 중복 변형 매칭)
-    # 예: "- **안내사항 : ... 김성혜 ...**", "안내사항: ... 김성혜 ...", "- 안내사항 : ... 김성혜 ..." 등
-    notice_pattern = re.compile(
-        r"[ \t]*(?:-\s*)?(?:\*\*)?[ \t]*안내사항[ \t]*:[ \t]*아래\s*실무\s*가이드\s*절차는\s*참고만\s*하시기\s*바라며[^\n]*김성혜[^\n]*(?:\*\*)?[ \t]*\n?",
-        re.MULTILINE
-    )
 
-    # 1. 텍스트 전체에서 이미 존재하는 모든 안내문구를 일단 깨끗하게 제거
-    cleaned_text = notice_pattern.sub("", text)
-
-    # 2. '2. 실무 가이드 절차' 소제목만 매칭 (대제목인 '[2단계: ...]' 등은 엄격히 배제)
-    header_pattern = re.compile(
-        r"((?:#{1,4}\s*)?(?:\d+\.\s*)?실무\s*가이드\s*절차[^\n]*\n)",
-        re.MULTILINE
-    )
-
-    def _replace_header(match):
-        full_match = match.group(0)
-        header_line = match.group(1).rstrip()
-        # 대제목('[2단계: 법제처...]' 등)인 경우 안내문구를 삽입하지 않고 원본 그대로 유지
-        if any(keyword in header_line for keyword in ["2단계", "단계:", "8대 항목", "검색 기반", "법제처"]):
-            return full_match
-        return f"{header_line}\n\n{PRACTICAL_GUIDE_NOTICE}\n"
-
-    result, count = header_pattern.subn(_replace_header, cleaned_text)
-
-    # 불필요한 연속 3줄 이상의 개행 정리
+def inject_practical_guide_notice(text: str) -> str:
+    """
+    답변 중 적용 법률 하위의 '2. 실무 가이드 절차' 소제목 바로 아래에 단 1개의 안내사항만
+    표준 볼드체로 남기고, 연달아 나타나거나 중복된 모든 안내문구는 완전히 삭제합니다.
+    또한 '[2단계: ...]' 등 전체 대제목 아래에 잘못 들어간 안내사항도 깨끗하게 삭제합니다.
+    """
+    if not text:
+        return text
+    # 1. 기존에 잘못 생성되거나 중복된 모든 안내문구 완전 제거
+    cleaned = strip_all_practical_guide_notices(text)
+    cleaned = re.sub(r"^[ \t]+$", "", cleaned, flags=re.MULTILINE)
+    # 2. 오직 각 법률 하위의 '2. 실무 가이드 절차' 소제목 바로 아래에만 정확히 1회 삽입
+    lines = cleaned.split("\n")
+    new_lines = []
+    for line in lines:
+        new_lines.append(line)
+        stripped = line.strip()
+        is_header = any(stripped.startswith(prefix) for prefix in ["2. 실무 가이드 절차", "### 2. 실무 가이드 절차", "#### 2. 실무 가이드 절차", "**2. 실무 가이드 절차**", "2) 실무 가이드 절차"]) or (stripped == "실무 가이드 절차" or stripped == "### 실무 가이드 절차")
+        is_step2_main = any(k in stripped for k in ["2단계", "단계:", "8대 항목", "검색 기반", "법제처", "[2단계", "대제목"])
+        if is_header and not is_step2_main:
+            new_lines.append("")
+            new_lines.append(PRACTICAL_GUIDE_NOTICE)
+            new_lines.append("")
+    result = "\n".join(new_lines)
     result = re.sub(r"\n{3,}", "\n\n", result)
     return result
 
@@ -666,13 +687,12 @@ class ConversationalRAGEngine:
                 f"{non_app_laws_str}\n\n"
                 f"★ 절대 주의 규칙:\n"
                 f"1. 위의 [1단계] 표나 내용을 절대로 다시 출력하거나 요약·반복하지 마십시오! (중복 출력 엄격히 금지)\n"
-                f"2. 당신의 답변은 반드시 바로 '### [2단계: 법제처(국가법령정보센터) 검색 기반 법률별 8대 항목 및 실무 가이드 절차]' 제목으로 시작해야 합니다.\n"
+                f"2. 당신의 답변은 반드시 바로 '### [2단계: 법제처(국가법령정보센터) 검색 기반 법률별 8대 항목 및 실무 가이드 절차]' 제목으로 시작해야 합니다. (주의: 이 대제목 바로 아래에는 절대로 안내사항을 쓰지 마십시오!)\n"
                 f"3. 위의 '적용 법률 목록'에 기재된 모든 법률에 대해 하나도 누락하지 말고, 각각 독립된 하위 섹션(### [법률명])을 나누어 작성하세요.\n"
                 f"4. 각 법률마다 반드시 다음 3가지 카테고리를 순서대로 구성하여 작성하세요:\n"
                 f"   1. 8대 항목 규제 내용 (1. 분리신고 ~ 8. 인도신고 순서대로 정리. 규정 없을 시 '해당없음'과 사유 명시)\n"
                 f"   2. 실무 가이드 절차\n"
-                f"      - ★ 필수 표기: '2. 실무 가이드 절차' 제목 바로 아래에는 반드시 한 칸 띄운 후 다음 줄에 아래 안내사항(볼드체)을 그대로 표기할 것:\n"
-                f"        - **안내사항 : 아래 실무 가이드 절차는 참고만 하시기 바라며, 실무 절차 관련 문의는 정책지원실 담당자(김성혜)에게 연락해 주시기 바랍니다.**\n"
+                f"      - ★ 중요: 본문 어디에도 정책지원실(김성혜) 안내사항 문구를 모델이 직접 쓰지 마십시오! (시스템 코드가 자동으로 각 법률의 2. 실무 가이드 절차 바로 아래에 표준 안내문구 1개를 삽입합니다)\n"
                 f"      - 소관 부처, 신청/신고 포털명 및 URL, 단계별 절차 Step 1~3, 구비서류\n"
                 f"   3. 주의사항:\n"
                 f"      - 컨텍스트에 제공된 [법제처 공식 법령 조문 원문] 및 법률별 주의사항을 바탕으로 형사처벌, 양벌 규정 등 벌칙과 행정처분 내용, 보관 및 운송 규정, 위험물질 취급 제한 등 연구자가 반드시 숙지해야 할 주의사항을 정확하게 작성하여 항상 포함할 것.\n"
@@ -897,41 +917,13 @@ class ConversationalRAGEngine:
                     "message": f"로컬 오픈소스 AI 모델({self.local_llm_model}) 준비 및 로딩 중... (최초 1회 자동 다운로드)"
                 }
 
-            # High-efficiency prompt tailoring for Local CPU inference
-            if has_step1:
-                local_system_prompt = (
-                    "당신은 대한민국 생물안전 및 법률 규제 전문가입니다. "
-                    "1단계 규제 현황(생물체위험군 및 적용 법령)은 이미 확인되어 화면에 표시되었으므로, "
-                    "2단계로서 해당 법률에 따른 실무 신고 절차(소관 부처, 신청 포털, 단계별 절차, 구비서류, 핵심 주의사항)를 "
-                    "가독성 높은 마크다운 목록 형식으로 상세하고 명확하게 작성해주세요."
-                )
-                concise_primary = "\n---\n".join([c.get("text", "") for c in retrieved_chunks[:2]])
-                concise_law = law_context_str[:1200] if law_context_str else ""
-                local_user_content = (
-                    f"[질문 대상 병원체/독소]\n{query}\n\n"
-                    f"[1단계 확정 적용 법률]\n{app_laws_str}\n\n"
-                    f"[관련 규제 지침 발췌]\n{concise_primary}\n\n"
-                    f"[핵심 법조문 요약]\n{concise_law}\n\n"
-                    f"[지침]\n위 적용 법률에 대한 2단계 실무 가이드 절차(신고 기관 및 포털, 단계별 실무 절차, 구비서류, 연구자 핵심 주의사항)를 작성하세요."
-                )
-            else:
-                local_system_prompt = "당신은 대한민국 생물안전 전문 법률 자문가입니다. 질문에 대해 관련 법령에 기반하여 명확하고 신뢰성 있는 법률 자문을 제공하세요."
-                concise_primary = "\n---\n".join([c.get("text", "") for c in retrieved_chunks[:2]])
-                concise_law = law_context_str[:1500] if law_context_str else ""
-                local_user_content = (
-                    f"[사용자 질의]\n{query}\n\n"
-                    f"[관련 규제 데이터]\n{concise_primary}\n\n"
-                    f"[관련 법조문 발췌]\n{concise_law}\n\n"
-                    f"[지침]\n위 데이터를 근거로 질문에 대해 상세히 답변하세요."
-                )
-
-            messages = [{"role": "system", "content": local_system_prompt}]
+            messages = [{"role": "system", "content": selected_system_prompt}]
             for m in chat_history[-2:]:
                 messages.append({"role": m["role"], "content": m["content"]})
-            messages.append({"role": "user", "content": local_user_content})
+            messages.append({"role": "user", "content": user_prompt_with_context})
 
             try:
-                raw_stream = local_provider.stream_generate(messages=messages, max_new_tokens=600)
+                raw_stream = local_provider.stream_generate(messages=messages, max_new_tokens=1024)
                 first_token = True
                 stream_msg = "2단계 실시간 법령 및 실무 절차 스트리밍 중 (로컬 무료 AI)..." if has_step1 else "법률전문가·교수·변호사 관점의 심층 법률 자문 스트리밍 중 (로컬 무료 AI)..."
                 for chunk_text in sanitize_llm_stream(raw_stream, has_step1_direct=has_step1):

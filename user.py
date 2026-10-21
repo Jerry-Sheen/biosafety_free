@@ -1,20 +1,3 @@
-import os
-"""
-==============================================================================
-Biosafety RAG System - User Interface & Unified CLI Entrypoint (user.py)
-------------------------------------------------------------------------------
-Provides dual-mode operation:
-1. Powerful CLI for document ingestion, deduplication, OCR check, and Gemini inspection:
-   - python user.py --input data/input/document.pdf
-   - python user.py --input data/input --recursive
-   - python user.py --input data/input/document.pdf --force
-   - python user.py --check-ocr
-   - python user.py --check-gemini
-   - python user.py --list-models
-2. Interactive Streamlit Conversational Web UI:
-   - streamlit run user.py
-==============================================================================
-"""
 import sys
 import os
 import argparse
@@ -636,10 +619,19 @@ def run_streamlit_app():
     st.markdown(
         """
         <style>
-        /* 메인 컨테이너 상단 여백: 헤더가 상단에서 1칸 정도 알맞게 내려오도록 조정 */
+        /* 메인 컨테이너 상단 여백 및 좌우 폭 확장 (타이틀이 한 줄로 시원하게 들어가도록 조정) */
         .block-container {
             padding-top: 1.6rem !important;
             padding-bottom: 7.0rem !important;
+            padding-left: 2rem !important;
+            padding-right: 2rem !important;
+            max-width: 98% !important;
+        }
+        /* 하단 고정 영역(채팅 입력창 등)도 메인 컨테이너 폭에 맞춰 확장 */
+        div[data-testid="stBottom"] > div {
+            padding-left: 2rem !important;
+            padding-right: 2rem !important;
+            max-width: 98% !important;
         }
         header[data-testid="stHeader"] {
             height: 1.5rem !important;
@@ -647,7 +639,7 @@ def run_streamlit_app():
             background: transparent !important;
         }
         .user-subheader { font-size: 25px; font-weight: bold; color: #4B5563; margin-top: 0.2rem; margin-bottom: 2px; padding-left: 90px; line-height: 1.2; }
-        .user-header { font-weight: 700; color: #1E3A8A; margin-top: 2px; margin-bottom: 20px; line-height: 1.2; }
+        .user-header { font-weight: 700; color: #1E3A8A; margin-top: 2px; margin-bottom: 20px; line-height: 1.2; white-space: nowrap; }
         .user-desc { color: #4B5563; font-size: 1.0rem; margin-bottom: 1.5rem; }
         </style>
         """,
