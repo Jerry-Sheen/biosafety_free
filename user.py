@@ -470,7 +470,8 @@ def run_streamlit_app():
         if "무료" in service_mode:
             rag_engine.llm_provider = "free"
             st.success("✅ **외부 사용자 완전 무료 모드**가 활성화되었습니다. 별도 API 키 없이 즉시 무료로 질문하실 수 있습니다.")
-            st.caption(f"🎯 로컬 CPU 모델: `{getattr(config, 'local_llm_model', 'Qwen/Qwen2.5-1.5B-Instruct')}`")
+            from src.rag.local_llm import get_local_llm_provider
+            st.caption(f"🎯 로컬 고속 AI: `{get_local_llm_provider().model_display_name}`")
         else:
             provider_option = st.radio(
                 "사용할 유료 LLM 제공자:",

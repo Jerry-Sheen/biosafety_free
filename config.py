@@ -58,6 +58,11 @@ class AppConfig(BaseModel):
     local_llm_model: str = Field(default_factory=lambda: os.getenv(
         "LOCAL_LLM_MODEL", "Qwen/Qwen2.5-1.5B-Instruct"))
     local_llm_device: str = Field(default_factory=lambda: os.getenv("LOCAL_LLM_DEVICE", "cpu"))
+    local_llm_gguf_repo: str = Field(default_factory=lambda: os.getenv(
+        "LOCAL_LLM_GGUF_REPO", "Qwen/Qwen2.5-1.5B-Instruct-GGUF"))
+    local_llm_gguf_file: str = Field(default_factory=lambda: os.getenv(
+        "LOCAL_LLM_GGUF_FILE", "qwen2.5-1.5b-instruct-q4_k_m.gguf"))
+    local_llm_n_ctx: int = Field(default_factory=lambda: int(os.getenv("LOCAL_LLM_N_CTX", "16384")))
 
     # OpenAI Settings (Paid mode BYOK)
     openai_api_key: str = Field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))

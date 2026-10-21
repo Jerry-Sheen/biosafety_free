@@ -725,7 +725,8 @@ class ConversationalRAGEngine:
 
         # Step 7: Generation
         if self.llm_provider in ("free", "local"):
-            active_model = f"로컬 오픈소스 ({self.local_llm_model})"
+            from src.rag.local_llm import get_local_llm_provider
+            active_model = f"로컬 고속 AI ({get_local_llm_provider().model_display_name})"
         elif self.llm_provider == "gemini":
             active_model = self.gemini_model
         else:
@@ -919,7 +920,11 @@ class ConversationalRAGEngine:
 
             messages = [{"role": "system", "content": selected_system_prompt}]
             for m in chat_history[-2:]:
-                messages.append({"role": m["role"], "content": m["content"]})
+                content = m.get("content", "")
+                # 이전 어시스턴트 답변이 수천 자에 달할 경우 앞 400자만 간략히 유지하여 컨텍스트 낭비 방지
+                if m.get("role") == "assistant" and len(content) > 400:
+                    content = content[:400] + "... (이전 답변 요약)"
+                messages.append({"role": m.get("role", "user"), "content": content})
             messages.append({"role": "user", "content": user_prompt_with_context})
 
             try:

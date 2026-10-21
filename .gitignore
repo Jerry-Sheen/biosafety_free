@@ -40,18 +40,17 @@ env/
 env.bak/
 venv.bak/
 
-# Vector DB & Storage Data (data/chroma_db and reference datasets are tracked for deployment)
+# Vector DB & Storage Data
 data/uploads/*
 !data/uploads/*.json
 !data/reference/
 !data/reference/**
-/chroma_db/
-/uploads/
+data/chroma_db*/
+data/chroma_db/
+chroma_db/
+uploads/
 *.db
 *.sqlite3
-!data/chroma_db/
-!data/chroma_db/**
-!data/chroma_db/*.sqlite3
 
 
 
@@ -89,3 +88,8 @@ desktop.ini
 # Logs
 *.log
 logs/
+
+# GGUF models & weights (large binaries)
+models/
+*.gguf
+*.part

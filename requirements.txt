@@ -18,6 +18,7 @@ torch>=2.2.0
 accelerate>=0.30.0
 google-genai>=2.0.0
 openai>=1.0.0
+llama-cpp-python>=0.3.0
 
 # Vector Database (Persistent Local Storage - Stable 0.6.3 without RustBindingsAPI bug)
 chromadb==0.6.3
